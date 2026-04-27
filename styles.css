@@ -505,3 +505,23 @@
 #mMsg {
   font-size: 13px;
 }
+
+.history-details {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(224,122,31,.08);
+  border: 1px solid rgba(224,122,31,.15);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.history-details strong {
+  color: var(--orange-2);
+}
+
+#historyList .row {
+  cursor: pointer;
+  align-items: flex-start;
+}

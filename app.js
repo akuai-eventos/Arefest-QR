@@ -96,17 +96,26 @@
       const row = document.createElement("div");
       row.className = "row";
       row.innerHTML = `
-        <div class="left">
-          <div class="title">${ui.escapeHtml(e.name)}</div>
-          <div class="meta">🕒 ${ui.fmt(e.ts)}</div>
-          <div class="meta">${ui.escapeHtml(e.code || "")}</div>
-        </div>
-        <div class="badge" style="white-space:nowrap;">${ui.escapeHtml(e.category || "Pedido")}</div>
-      `;
-      historyList.appendChild(row);
-    }
-  }
+  <div class="left">
+    <div class="title">${ui.escapeHtml(e.name)}</div>
+    <div class="meta">🕒 ${ui.fmt(e.ts)}</div>
+    <div class="meta">${ui.escapeHtml(e.code || "")}</div>
 
+    <div class="history-details hidden">
+      <div><strong>Cédula:</strong> ${ui.escapeHtml(e.cedula || "-")}</div>
+      <div><strong>WhatsApp:</strong> ${ui.escapeHtml(e.whatsapp || "-")}</div>
+      <div><strong>Combos:</strong> ${ui.escapeHtml(String(e.combos || "-"))}</div>
+      <div><strong>Sabores:</strong> ${ui.escapeHtml(e.sabores || "-")}</div>
+      <div><strong>Bebida:</strong> ${ui.escapeHtml(e.bebida || "-")}</div>
+    </div>
+  </div>
+  <div class="badge" style="white-space:nowrap;">${ui.escapeHtml(e.category || "Pedido")}</div>
+`;
+
+row.addEventListener("click", () => {
+  const details = row.querySelector(".history-details");
+  if (details) details.classList.toggle("hidden");
+});
   function resetModalStates() {
     mStatusOk.classList.add("hidden");
     mStatusBad.classList.add("hidden");
