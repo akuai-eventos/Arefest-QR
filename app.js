@@ -60,6 +60,12 @@
   brandSubtitle.textContent = config.subtitle;
   aboutVersion.textContent = `${config.appName} · Versión ${config.version}`;
 
+  function limpiarCodigo(raw) {
+    const text = String(raw || "").trim().toUpperCase();
+    const match = text.match(/AREFEST-\d+/);
+    return match ? match[0] : text;
+  }
+
   function setActiveTab(key) {
     Object.values(screens).forEach(s => s.classList.add("hidden"));
     Object.values(tabs).forEach(t => t.classList.remove("active"));
@@ -95,27 +101,33 @@
     for (const e of entries) {
       const row = document.createElement("div");
       row.className = "row";
+
       row.innerHTML = `
-  <div class="left">
-    <div class="title">${ui.escapeHtml(e.name)}</div>
-    <div class="meta">🕒 ${ui.fmt(e.ts)}</div>
-    <div class="meta">${ui.escapeHtml(e.code || "")}</div>
+        <div class="left">
+          <div class="title">${ui.escapeHtml(e.name || "Sin nombre")}</div>
+          <div class="meta">🕒 ${ui.fmt(e.ts)}</div>
+          <div class="meta">${ui.escapeHtml(e.code || "")}</div>
 
-    <div class="history-details hidden">
-      <div><strong>Cédula:</strong> ${ui.escapeHtml(e.cedula || "-")}</div>
-      <div><strong>WhatsApp:</strong> ${ui.escapeHtml(e.whatsapp || "-")}</div>
-      <div><strong>Combos:</strong> ${ui.escapeHtml(String(e.combos || "-"))}</div>
-      <div><strong>Sabores:</strong> ${ui.escapeHtml(e.sabores || "-")}</div>
-      <div><strong>Bebida:</strong> ${ui.escapeHtml(e.bebida || "-")}</div>
-    </div>
-  </div>
-  <div class="badge" style="white-space:nowrap;">${ui.escapeHtml(e.category || "Pedido")}</div>
-`;
+          <div class="history-details hidden">
+            <div><strong>Cédula:</strong> ${ui.escapeHtml(e.cedula || "-")}</div>
+            <div><strong>WhatsApp:</strong> ${ui.escapeHtml(e.whatsapp || "-")}</div>
+            <div><strong>Combos:</strong> ${ui.escapeHtml(String(e.combos || "-"))}</div>
+            <div><strong>Sabores:</strong> ${ui.escapeHtml(e.sabores || "-")}</div>
+            <div><strong>Bebida:</strong> ${ui.escapeHtml(e.bebida || "-")}</div>
+          </div>
+        </div>
+        <div class="badge" style="white-space:nowrap;">${ui.escapeHtml(e.category || "Pedido")}</div>
+      `;
 
-row.addEventListener("click", () => {
-  const details = row.querySelector(".history-details");
-  if (details) details.classList.toggle("hidden");
-});
+      row.addEventListener("click", () => {
+        const details = row.querySelector(".history-details");
+        if (details) details.classList.toggle("hidden");
+      });
+
+      historyList.appendChild(row);
+    }
+  }
+
   function resetModalStates() {
     mStatusOk.classList.add("hidden");
     mStatusBad.classList.add("hidden");
@@ -260,6 +272,7 @@ row.addEventListener("click", () => {
       return;
     }
 
+    btnRegister.disabled = false;
     btnRegister.textContent = "Registrar Entrega";
     btnRegister.classList.remove("hidden");
     mMsg.textContent = "Pedido listo para entregar.";
@@ -317,37 +330,14 @@ row.addEventListener("click", () => {
   function explainCameraError(err) {
     const msg = String(err?.message || err || "");
 
-    if (msg.includes("SECURE_CONTEXT_REQUIRED")) {
-      return "❌ La cámara requiere HTTPS o localhost.";
-    }
-
-    if (msg.includes("MEDIA_DEVICES_UNAVAILABLE")) {
-      return "❌ Este navegador no expone mediaDevices.";
-    }
-
-    if (msg.includes("GET_USER_MEDIA_UNAVAILABLE")) {
-      return "❌ Este navegador no soporta getUserMedia.";
-    }
-
-    if (msg.includes("NO_CAMERAS_FOUND")) {
-      return "❌ No se encontró ninguna cámara disponible.";
-    }
-
-    if (msg.toLowerCase().includes("notallowed")) {
-      return "❌ Permiso de cámara denegado.";
-    }
-
-    if (msg.toLowerCase().includes("permission")) {
-      return "❌ Permiso de cámara bloqueado.";
-    }
-
-    if (msg.toLowerCase().includes("notreadable")) {
-      return "❌ La cámara está en uso por otra app.";
-    }
-
-    if (msg.toLowerCase().includes("overconstrained")) {
-      return "❌ No se pudo usar esa cámara del dispositivo.";
-    }
+    if (msg.includes("SECURE_CONTEXT_REQUIRED")) return "❌ La cámara requiere HTTPS o localhost.";
+    if (msg.includes("MEDIA_DEVICES_UNAVAILABLE")) return "❌ Este navegador no expone mediaDevices.";
+    if (msg.includes("GET_USER_MEDIA_UNAVAILABLE")) return "❌ Este navegador no soporta getUserMedia.";
+    if (msg.includes("NO_CAMERAS_FOUND")) return "❌ No se encontró ninguna cámara disponible.";
+    if (msg.toLowerCase().includes("notallowed")) return "❌ Permiso de cámara denegado.";
+    if (msg.toLowerCase().includes("permission")) return "❌ Permiso de cámara bloqueado.";
+    if (msg.toLowerCase().includes("notreadable")) return "❌ La cámara está en uso por otra app.";
+    if (msg.toLowerCase().includes("overconstrained")) return "❌ No se pudo usar esa cámara del dispositivo.";
 
     return `❌ Error de cámara: ${msg || "desconocido"}`;
   }
@@ -392,6 +382,13 @@ row.addEventListener("click", () => {
   async function handleScan(code) {
     if (handlingScan) return;
 
+    code = limpiarCodigo(code);
+
+    if (!code) {
+      camStatus.textContent = "Código vacío.";
+      return;
+    }
+
     handlingScan = true;
 
     try {
@@ -406,7 +403,8 @@ row.addEventListener("click", () => {
       }
 
       openModal(data.attendee);
-    } catch {
+    } catch (error) {
+      console.warn("Error procesando código:", error);
       openModal(null, "notfound");
     } finally {
       handlingScan = false;
@@ -451,7 +449,8 @@ row.addEventListener("click", () => {
 
       mMsg.textContent = "❌ No se pudo registrar la entrega.";
       proFeedback("bad");
-    } catch {
+    } catch (error) {
+      console.warn("Error registrando entrega:", error);
       mMsg.textContent = "❌ Error registrando la entrega.";
       proFeedback("bad");
     } finally {
@@ -460,9 +459,14 @@ row.addEventListener("click", () => {
   }
 
   async function handleManualSearch() {
-    const code = manualCode.value.trim();
-    if (!code) return;
+    const code = limpiarCodigo(manualCode.value);
 
+    if (!code) {
+      camStatus.textContent = "Escribe un código válido.";
+      return;
+    }
+
+    camStatus.textContent = "Buscando código manual...";
     await handleScan(code);
   }
 
