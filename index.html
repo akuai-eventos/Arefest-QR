@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>AKUAI | Arefest</title>
+
+  <meta name="theme-color" content="#E07A1F" />
+  <meta name="description" content="AKUAI EVENTOS" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Playfair+Display:wght@700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+
+
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="top">
+      <div class="brand">
+        <div class="logo"><img src="isotipopng.png" alt="AKUAI"></div>
+        <div>
+          <strong id="brandTitle">AKUAI EVENTOS</strong>
+          <span id="brandSubtitle">Escaneo · Arefest</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <section id="screen-scan" class="card">
+        <h1>Escáner QR</h1>
+        <p class="sub">Escanea el código QR para registrar la entrega.</p>
+
+        <div id="scanIdle" class="scan-box">
+          <div class="scan-hint">
+            <div class="qr-icon">▦</div>
+            <div>Apunta la cámara al código QR.</div>
+          </div>
+        </div>
+
+        <div id="scanLive" class="camera-wrap hidden">
+          <div id="reader"></div>
+        </div>
+
+        <button id="btnStart" class="btn btn-primary">Iniciar escaneo</button>
+        <button id="btnStop" class="btn btn-ghost hidden" style="margin-top:10px;">Detener</button>
+
+        <div class="manual-box">
+          <input id="manualCode" class="manual-input" type="text" placeholder="Ej: AREFEST-0001">
+          <button id="btnManualSearch" class="btn btn-ghost">Código manual</button>
+        </div>
+
+        <p class="tiny" id="camStatus" style="margin-top:10px;"></p>
+
+        <p class="tiny" style="margin-top:12px;">
+        </p>
+      </section>
+
+      <section id="screen-history" class="card hidden">
+        <h1>Historial (este teléfono)</h1>
+        <p class="sub"><span id="count">0</span> registros encontrados</p>
+        <div id="historyList"></div>
+        <button id="btnClear" class="btn btn-danger" style="margin-top:12px;">Borrar historial local</button>
+      </section>
+
+      <section id="screen-settings" class="card hidden">
+        <h1>Configuración</h1>
+        <p class="sub">Personaliza tu experiencia</p>
+
+        <div class="row">
+          <div class="left">
+            <div class="title">Modo Oscuro</div>
+            <div class="meta" id="darkLabel">Desactivado</div>
+          </div>
+          <button id="toggleTheme" class="btn btn-ghost" style="width:auto; padding:10px 12px;">Cambiar</button>
+        </div>
+
+        <div class="row">
+          <div class="left">
+            <div class="title">Acerca de</div>
+            <div class="meta" id="aboutVersion">AKUAI Check-in · Versión 2026</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="nav">
+      <button id="tabScan" class="active">Escanear</button>
+      <button id="tabHistory">Historial</button>
+      <button id="tabSettings">Ajustes</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <button class="close" id="modalClose">×</button>
+
+      <div class="person">
+        <img class="avatar" id="mAvatar" alt="Foto" />
+        <p class="name" id="mName">—</p>
+        <div class="badge" id="mCat">—</div>
+        <div class="tiny" id="mCode">—</div>
+
+        <div id="mStatusOk" class="status-ok hidden"></div>
+        <div id="mStatusBad" class="status-bad hidden"></div>
+      </div>
+
+      <button id="btnRegister" class="btn btn-success">Registrar Entrega</button>
+      <button id="btnAlready" class="btn btn-ghost hidden" style="margin-top:10px;">Ver historial</button>
+
+      <p class="tiny" id="mMsg" style="margin:12px 0 0; text-align:center;"></p>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="dangerBackdrop">
+    <div class="modal">
+      <button class="close" id="dangerClose">×</button>
+
+      <div class="danger-copy">
+        <p class="name" style="margin:0;">Borrar historial local</p>
+        <div class="status-bad" style="display:flex;">
+          ⚠️ Esta acción no se puede deshacer
+        </div>
+        <p class="tiny" id="dangerText" style="margin:0;">
+          Se eliminarán todos los registros guardados en este teléfono.
+        </p>
+      </div>
+
+      <div style="margin-top:14px;">
+        <label for="dangerInput" class="tiny" style="display:block; margin-bottom:8px;">
+          Escribe <b>BORRAR</b> para confirmar
+        </label>
+        <input
+          id="dangerInput"
+          type="text"
+          placeholder="Escribe BORRAR"
+          class="manual-input"
+          autocomplete="off"
+        />
+      </div>
+
+      <button id="dangerConfirm" class="btn btn-danger" style="margin-top:14px;" disabled>
+        Confirmar borrado
+      </button>
+      <button id="dangerCancel" class="btn btn-ghost" style="margin-top:10px;">
+        Cancelar
+      </button>
+    </div>
+  </div>
+
+  <div id="scanFlash" class="scan-flash"></div>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      registrations.forEach(function(registration) {
+        registration.unregister();
+      });
+    });
+  }
+
+  if ("caches" in window) {
+    caches.keys().then(function(names) {
+      names.forEach(function(name) {
+        caches.delete(name);
+      });
+    });
+  }
+</script>
+
+<script src="./config.js?v=10"></script>
+<script src="./mock-data.js?v=10"></script>
+<script src="./storage.js?v=10"></script>
+<script src="./ui.js?v=10"></script>
+<script src="./api.js?v=10"></script>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<script src="./scanner.js?v=10"></script>
+<script src="./app.js?v=10"></script>
+
+</body>
+</html>
