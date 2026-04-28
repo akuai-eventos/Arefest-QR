@@ -18,16 +18,23 @@
     return loadEntries().some(e => e.code === code);
   }
 
-  function addLocal(att) {
-    const entries = loadEntries();
-    entries.unshift({
-      code: att.code,
-      name: att.name,
-      category: att.category,
-      ts: new Date().toISOString()
-    });
-    saveEntries(entries);
-  }
+function addLocal(att) {
+  const entries = loadEntries();
+
+  entries.unshift({
+    code: att.code || "",
+    name: att.name || "",
+    category: att.category || "Pedido",
+    cedula: att.cedula || "",
+    whatsapp: att.whatsapp || "",
+    combos: att.combos || "",
+    sabores: att.sabores || "",
+    bebida: att.bebida || "",
+    ts: new Date().toISOString()
+  });
+
+  saveEntries(entries);
+}
 
   function clearEntries() {
     localStorage.removeItem(LS_ENTRIES);
