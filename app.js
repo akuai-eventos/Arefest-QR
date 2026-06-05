@@ -62,8 +62,33 @@
 
   function limpiarCodigo(raw) {
     const text = String(raw || "").trim().toUpperCase();
-    const match = text.match(/AREFEST-\d+/);
-    return match ? match[0] : text;
+
+    const match = text.match(/(?:LAI|AREFEST|AKUAI)-\d+/i);
+
+    return match ? match[0].toUpperCase() : text;
+  }
+
+  function normalizarTexto(value) {
+    return String(value || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function esPagoConfirmado(value) {
+    const v = normalizarTexto(value);
+
+    return (
+      v === "VALIDADO" ||
+      v === "PAGO VALIDADO" ||
+      v === "SI CONFIRMADO" ||
+      v === "SÍ CONFIRMADO" ||
+      v === "CONFIRMADO" ||
+      v === "APROBADO" ||
+      v === "CORTESIA" ||
+      v === "CORTESÍA"
+    );
   }
 
   function setActiveTab(key) {
@@ -94,7 +119,7 @@
     historyList.innerHTML = "";
 
     if (entries.length === 0) {
-      historyList.innerHTML = `<p class="tiny">Aún no hay entregas registradas en este teléfono.</p>`;
+      historyList.innerHTML = `<p class="tiny">Aún no hay ingresos registrados en este teléfono.</p>`;
       return;
     }
 
@@ -111,12 +136,13 @@
           <div class="history-details hidden">
             <div><strong>Cédula:</strong> ${ui.escapeHtml(e.cedula || "-")}</div>
             <div><strong>WhatsApp:</strong> ${ui.escapeHtml(e.whatsapp || "-")}</div>
-            <div><strong>Combos:</strong> ${ui.escapeHtml(String(e.combos || "-"))}</div>
-            <div><strong>Sabores:</strong> ${ui.escapeHtml(e.sabores || "-")}</div>
-            <div><strong>Bebida:</strong> ${ui.escapeHtml(e.bebida || "-")}</div>
+            <div><strong>Email:</strong> ${ui.escapeHtml(e.email || "-")}</div>
+            <div><strong>Grupo:</strong> ${ui.escapeHtml(e.id_grupo || "-")}</div>
+            <div><strong>Modalidad:</strong> ${ui.escapeHtml(e.modalidad || "-")}</div>
+            <div><strong>Categoría:</strong> ${ui.escapeHtml(e.category || "-")}</div>
           </div>
         </div>
-        <div class="badge" style="white-space:nowrap;">${ui.escapeHtml(e.category || "Pedido")}</div>
+        <div class="badge" style="white-space:nowrap;">${ui.escapeHtml(e.category || "Entrada")}</div>
       `;
 
       row.addEventListener("click", () => {
@@ -202,15 +228,16 @@
     }, 30);
   }
 
-  function renderPedido(att) {
+  function renderEntrada(att) {
     const safeName = ui.escapeHtml(att.name || "—");
     const safeCedula = ui.escapeHtml(att.cedula || "-");
     const safeWhatsapp = ui.escapeHtml(att.whatsapp || "-");
-    const safeCategory = ui.escapeHtml(att.category || "Pedido");
+    const safeEmail = ui.escapeHtml(att.email || "-");
+    const safeCategory = ui.escapeHtml(att.category || "Entrada");
     const safeCode = ui.escapeHtml(att.code || "—");
-    const safeCombos = ui.escapeHtml(String(att.combos || "0"));
-    const safeSabores = ui.escapeHtml(att.sabores || "—");
-    const safeBebida = ui.escapeHtml(att.bebida || "—");
+    const safeGrupo = ui.escapeHtml(att.id_grupo || "-");
+    const safeModalidad = ui.escapeHtml(att.modalidad || "-");
+    const safePago = ui.escapeHtml(att.confirmacion_pago || "-");
 
     mName.innerHTML = `
       ${safeName}
@@ -222,9 +249,10 @@
 
     mCode.innerHTML = `
       <div class="tiny"><strong>Código:</strong> ${safeCode}</div>
-      <div class="tiny"><strong>Combos:</strong> ${safeCombos}</div>
-      <div class="tiny"><strong>Sabores:</strong> ${safeSabores}</div>
-      <div class="tiny"><strong>Bebida:</strong> ${safeBebida}</div>
+      <div class="tiny"><strong>Grupo:</strong> ${safeGrupo}</div>
+      <div class="tiny"><strong>Modalidad:</strong> ${safeModalidad}</div>
+      <div class="tiny"><strong>Email:</strong> ${safeEmail}</div>
+      <div class="tiny"><strong>Pago:</strong> ${safePago}</div>
     `;
   }
 
@@ -247,16 +275,25 @@
 
     const photoUrl = ui.toDriveDirectUrl(att.photo);
     setAvatar(photoUrl);
-    renderPedido(att);
+    renderEntrada(att);
 
     const dupGlobal = !!att.checked_in;
     const dupLocal = storage.alreadyLocal(att.code);
 
+    if (!esPagoConfirmado(att.confirmacion_pago)) {
+      mStatusBad.textContent = "❌ Pago no validado";
+      mStatusBad.classList.remove("hidden");
+      mMsg.textContent = "Esta entrada existe, pero Finanzas aún no ha validado el pago. No se puede registrar el ingreso.";
+      proFeedback("bad");
+      modalBackdrop.style.display = "flex";
+      return;
+    }
+
     if (dupGlobal) {
-      mStatusOk.textContent = "✅ Ya fue entregado";
+      mStatusOk.textContent = "✅ Ya ingresó";
       mStatusOk.classList.remove("hidden");
       btnAlready.classList.remove("hidden");
-      mMsg.textContent = `Entregado · ${ui.fmt(att.checked_at) || att.checked_at || ""}`;
+      mMsg.textContent = `Ingreso registrado · ${ui.fmt(att.checked_at) || att.checked_at || ""}`;
       proFeedback("ok");
       modalBackdrop.style.display = "flex";
       return;
@@ -266,16 +303,16 @@
       mStatusOk.textContent = "✅ Ya registrado en este teléfono";
       mStatusOk.classList.remove("hidden");
       btnAlready.classList.remove("hidden");
-      mMsg.textContent = "Este pedido ya fue marcado como entregado desde este dispositivo.";
+      mMsg.textContent = "Esta entrada ya fue marcada como ingresada desde este dispositivo.";
       proFeedback("ok");
       modalBackdrop.style.display = "flex";
       return;
     }
 
     btnRegister.disabled = false;
-    btnRegister.textContent = "Registrar Entrega";
+    btnRegister.textContent = "Registrar ingreso";
     btnRegister.classList.remove("hidden");
-    mMsg.textContent = "Pedido listo para entregar.";
+    mMsg.textContent = "Entrada validada. Lista para registrar ingreso.";
     proFeedback("ok");
     modalBackdrop.style.display = "flex";
   }
@@ -415,18 +452,27 @@
     if (!currentAttendee) return;
 
     btnRegister.disabled = true;
-    mMsg.textContent = "Registrando entrega...";
+    mMsg.textContent = "Registrando ingreso...";
 
     try {
       const res = await api.checkin(currentAttendee.code);
 
       if (res?.ok && res?.status === "duplicate") {
         resetModalStates();
-        mStatusOk.textContent = "✅ Ya fue entregado";
+        mStatusOk.textContent = "✅ Ya ingresó";
         mStatusOk.classList.remove("hidden");
         btnAlready.classList.remove("hidden");
-        mMsg.textContent = `Entregado · ${ui.fmt(res.checked_at) || res.checked_at || ""}`;
+        mMsg.textContent = `Ingreso registrado · ${ui.fmt(res.checked_at) || res.checked_at || ""}`;
         proFeedback("ok");
+        return;
+      }
+
+      if (!res?.ok && res?.status === "pago_no_validado") {
+        resetModalStates();
+        mStatusBad.textContent = "❌ Pago no validado";
+        mStatusBad.classList.remove("hidden");
+        mMsg.textContent = "Finanzas aún no ha validado el pago de esta entrada.";
+        proFeedback("bad");
         return;
       }
 
@@ -437,21 +483,21 @@
         storage.addLocal(currentAttendee);
 
         resetModalStates();
-        mStatusOk.textContent = "✅ Entrega registrada";
+        mStatusOk.textContent = "✅ Ingreso registrado";
         mStatusOk.classList.remove("hidden");
         btnAlready.classList.remove("hidden");
-        mMsg.textContent = `Entregado · ${ui.fmt(currentAttendee.checked_at) || currentAttendee.checked_at || ""}`;
+        mMsg.textContent = `Ingreso · ${ui.fmt(currentAttendee.checked_at) || currentAttendee.checked_at || ""}`;
         proFeedback("ok");
 
         setTimeout(closeModal, 900);
         return;
       }
 
-      mMsg.textContent = "❌ No se pudo registrar la entrega.";
+      mMsg.textContent = "❌ No se pudo registrar el ingreso.";
       proFeedback("bad");
     } catch (error) {
-      console.warn("Error registrando entrega:", error);
-      mMsg.textContent = "❌ Error registrando la entrega.";
+      console.warn("Error registrando ingreso:", error);
+      mMsg.textContent = "❌ Error registrando el ingreso.";
       proFeedback("bad");
     } finally {
       btnRegister.disabled = false;

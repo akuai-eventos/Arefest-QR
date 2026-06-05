@@ -1,52 +1,105 @@
 (function () {
   const { apiUrl, useMock } = window.APP_CONFIG;
 
+  function normalizarSiNo(value) {
+    const v = String(value || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    return v === "SI" || v === "TRUE" || v === "VERDADERO";
+  }
+
   function normalizeLookupResponse(data, fallbackCode) {
     if (!data) return { ok: false };
 
-    // 🔥 CASO GOOGLE SHEETS (pedido real)
+    /*
+      CASO ACTUAL: SISTEMA DE ENTRADAS
+      El Code.gs devuelve:
+      {
+        ok: true,
+        entrada: {
+          code,
+          id_grupo,
+          nombre,
+          cedula,
+          whatsapp,
+          email,
+          categoria,
+          modalidad,
+          confirmacion_pago,
+          checkin,
+          hora_checkin,
+          validacion
+        }
+      }
+    */
+    if (data.entrada) {
+      return {
+        ok: !!data.ok,
+        attendee: {
+          code: data.entrada.code || fallbackCode,
+          id_grupo: data.entrada.id_grupo || "",
+          name: data.entrada.nombre || "",
+          cedula: data.entrada.cedula || "",
+          whatsapp: data.entrada.whatsapp || "",
+          email: data.entrada.email || "",
+          category: data.entrada.categoria || "Entrada",
+          modalidad: data.entrada.modalidad || "",
+          confirmacion_pago: data.entrada.confirmacion_pago || "",
+          validacion: data.entrada.validacion || "",
+          photo: "",
+          checked_in: normalizarSiNo(data.entrada.checkin),
+          checked_at: data.entrada.hora_checkin || ""
+        }
+      };
+    }
+
+    /*
+      FALLBACK VIEJO: por si algún endpoint todavía devuelve order.
+      Lo dejo para que no se rompa si llega una respuesta antigua.
+    */
     if (data.order) {
       return {
         ok: !!data.ok,
         attendee: {
           code: data.order.code || fallbackCode,
-          name: data.order.comprador || "",
-          category: data.order.modalidad || "Pedido",
-          photo: "",
+          id_grupo: data.order.id_grupo || "",
+          name: data.order.comprador || data.order.nombre || "",
           cedula: data.order.cedula || "",
           whatsapp: data.order.whatsapp || "",
+          email: data.order.email || "",
+          category: data.order.categoria || data.order.modalidad || "Entrada",
+          modalidad: data.order.modalidad || "",
+          confirmacion_pago: data.order.confirmacion_pago || "",
+          validacion: data.order.validacion || "",
+          photo: "",
           checked_in:
-            String(data.order.retirado || "").toUpperCase() === "SI" ||
-            String(data.order.retirado || "").toUpperCase() === "SÍ",
-
-          checked_at: data.order.hora_retiro || "",
-
-          // 👇 SOLO LO NECESARIO PARA EL LECTOR QR
-          combos: data.order.combos || 0,
-
-          sabores: [
-            data.order.catira ? `Catira x${data.order.catira}` : null,
-            data.order.pelua ? `Pelúa x${data.order.pelua}` : null,
-            data.order.reina ? `Reina x${data.order.reina}` : null,
-            data.order.rumbera ? `Rumbera x${data.order.rumbera}` : null,
-            data.order.akuai ? `Akuai x${data.order.akuai}` : null
-          ].filter(Boolean).join(", "),
-
-          bebida: data.order.bebida || ""
+            normalizarSiNo(data.order.checkin) ||
+            normalizarSiNo(data.order.retirado),
+          checked_at: data.order.hora_checkin || data.order.hora_retiro || ""
         }
       };
     }
 
-    // 🔹 fallback genérico
+    // Fallback genérico
     return {
       ok: !!data.ok,
       attendee: {
         code: data.code || fallbackCode,
-        name: data.name || data.comprador || "",
-        category: data.category || data.modalidad || "Pedido",
+        id_grupo: data.id_grupo || "",
+        name: data.name || data.nombre || data.comprador || "",
+        cedula: data.cedula || "",
+        whatsapp: data.whatsapp || "",
+        email: data.email || "",
+        category: data.category || data.categoria || data.modalidad || "Entrada",
+        modalidad: data.modalidad || "",
+        confirmacion_pago: data.confirmacion_pago || "",
+        validacion: data.validacion || "",
         photo: data.photo ? String(data.photo).trim() : "",
-        checked_in: !!data.checked_in,
-        checked_at: data.checked_at || data.hora_retiro || ""
+        checked_in: !!data.checked_in || normalizarSiNo(data.checkin),
+        checked_at: data.checked_at || data.hora_checkin || ""
       }
     };
   }
@@ -88,9 +141,8 @@
 
     return {
       ok: true,
-      status: "delivered",
-      checked_at: attendee.checked_at,
-      delivered_at: attendee.checked_at
+      status: "checked_in",
+      checked_at: attendee.checked_at
     };
   }
 
@@ -108,7 +160,7 @@
 
   async function liveCheckin(code) {
     const body = new URLSearchParams({
-      action: "deliver",
+      action: "checkin",
       code
     });
 
@@ -129,9 +181,17 @@
         data.checked_at = data.delivered_at;
       }
 
+      if (data.hora_checkin && !data.checked_at) {
+        data.checked_at = data.hora_checkin;
+      }
+
       return data;
     } catch {
-      return { ok: false, error: "INVALID_RESPONSE", raw: text };
+      return {
+        ok: false,
+        error: "INVALID_RESPONSE",
+        raw: text
+      };
     }
   }
 

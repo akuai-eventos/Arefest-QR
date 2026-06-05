@@ -1,7 +1,7 @@
 {
- "name": "AKUAI Entregas",
+  "name": "AKUAI Check-in",
   "short_name": "AKUAI",
-  "description": "AKUAI Entregas para validación y entrega de pedidos",
+  "description": "AKUAI Check-in para validación de entradas e ingreso al evento",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
